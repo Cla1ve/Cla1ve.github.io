@@ -1,0 +1,130 @@
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cla1ve is detta? - Игровое Портфолио</title>
+  <link rel="stylesheet" href="styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+  <script defer src="particles.js"></script>
+  <script defer src="animations.js"></script>
+  <script defer src="themeControl.js"></script>
+</head>
+<body data-theme="purple">
+  <nav>
+    <a href="#about">Обо мне</a>
+    <a href="#projects">Проекты</a>
+  </nav>
+
+  <div class="game-particles"></div>
+
+  <main>
+    <section class="hero">
+      <div class="profile-container">
+        <div class="profile-pic">
+          <img src="cla1ve.jpg" alt="Gamer Avatar">
+        </div>
+        <h1 class="gamer-name">Cla1ve is detta?</h1>
+        <p class="gamer-title">🎮 GAMER & DEVELOPER</p>
+        
+        <div class="social-links">
+          <a href="https://t.me/cla1ve" class="social-btn telegram" aria-label="Personal Telegram">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 0C5.37 0 0 5.37 0 12s5.37 12 12 12 12-5.37 12-12S18.63 0 12 0zm5.95 8.03c-.07.72-.37 3.27-.67 6.03l-.85 5.67c-.06.42-.31.52-.63.32l-3.47-2.56-1.67 1.61c-.19.18-.34.33-.71.33l.25-3.58 6.51-5.87c.28-.25-.06-.39-.44-.14L8.7 14.4l-3.46-1.08c-.75-.23-.76-.74.17-1.09l13.54-5.22c.62-.25 1.17.15 1 1.02z"/>
+            </svg>
+          </a>
+          <a href="https://t.me/boost_mlbb" class="social-btn project" aria-label="MLBB Boost Service">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15v-3H8l4-7v3h3l-4 7z"/>
+            </svg>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <section id="about" class="about">
+      <h2>О себе</h2>
+      <div class="about-content">
+        <p>Хеллоу. Мне 18 лет. Играю в игрушки, че то как то пытаюсь научиться программировать. Тест сайтик</p>
+        
+        <div class="skill-breakdown">
+          <div class="skill-category">
+            <h3>🎮 Игровые навыки</h3>
+            <ul>
+              <li>Профессиональный буст Mobile Legends</li>
+              <li>Стратегическое MOBA мышление</li>
+              <li>Профессиональный игрок</li>
+            </ul>
+          </div>
+          
+          <div class="skill-category">
+            <h3>💻 Технические Навыки</h3>
+            <ul>
+              <li>Веб-разработка</li>
+              <li>Программирование на Python</li>
+              <li>Программирование на C#</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="projects" class="projects">
+      <h2>Игровые Проекты</h2>
+      <div class="project-grid">
+        <div class="project-card">
+          <div class="project-content">
+            <h3>MLBB BOOST SERVICE 🚀</h3>
+            <p>Профессиональный буст от команды PRO-игроков! Наши бустеры - участники турниров уровня MСС, либо игроки с опытом более 1000⭐️ звёзд. Предлагаем все виды буста: соло, дуо, на одном герое, сезонный буст и другие услуги.</p>
+            <div class="project-stats">
+              <div class="stat">
+                <span class="stat-value">100+</span>
+                <span class="stat-label">Успешных бустов</span>
+              </div>
+              <div class="stat">
+                <span class="stat-value">100%</span>
+                <span class="stat-label">Довольных клиентов</span>
+              </div>
+            </div>
+            <a href="https://t.me/boost_mlbb" class="project-link">
+              <span>Заказать Буст</span>
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="footer-content">
+      <p>© 2025 Cla1ve is detta? | MOBA Гейминг & Разработка</p>
+      <div class="footer-links">
+        <a href="https://t.me/cla1ve">Контакты</a>
+        <a href="#about">О нас</a>
+        <a href="#projects">Проекты</a>
+      </div>
+    </div>
+  </footer>
+
+  <div class="theme-controls">
+    
+     <div class="colors">
+      <button class="theme-btn purple" data-theme="purple" aria-label="Purple Theme"></button>
+      <button class="theme-btn blue" data-theme="blue" aria-label="Blue Theme"></button>
+      <button class="theme-btn green" data-theme="green" aria-label="Green Theme"></button>
+      <button class="theme-btn red" data-theme="red" aria-label="Red Theme"></button>
+      <button class="theme-btn gold" data-theme="gold" aria-label="Gold Theme"></button>
+    </div>
+        <button class="mute-btn" aria-label="Toggle Sound">
+      <svg viewBox="0 0 24 24">
+        <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+      </svg>
+    </button>
+  </div>
+
+  <audio id="bgMusic" loop>
+    <source src="echoes-of-the-past-from-album-liminal-spaces-197000.mp3" type="audio/mpeg">
+  </audio>
+</body>
+</html>
