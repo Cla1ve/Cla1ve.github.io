@@ -1,231 +1,210 @@
-class GameParticle {
-  constructor(x, y, size, speed, color) {
-    this.x = x;
-    this.y = y;
-    this.size = size;
-    this.baseSize = size;
-    this.speed = speed;
-    this.color = color;
-    this.alpha = Math.random();
-    this.direction = Math.random() * Math.PI * 2;
-    this.velocity = {
-      x: Math.cos(this.direction) * speed,
-      y: Math.sin(this.direction) * speed
-    };
-    this.lastMouse = { x: x, y: y };
-    this.distanceFromMouse = 1000;
-  }
-
-  update(mouse) {
-    // Update position based on velocity
-    this.x += this.velocity.x;
-    this.y += this.velocity.y;
-
-    // Mouse interaction
-    if (mouse.x && mouse.y) {
-      const dx = mouse.x - this.x;
-      const dy = mouse.y - this.y;
-      this.distanceFromMouse = Math.sqrt(dx * dx + dy * dy);
-      
-      if (this.distanceFromMouse < 150) {
-        const angle = Math.atan2(dy, dx);
-        const force = (150 - this.distanceFromMouse) / 150;
-        this.velocity.x -= Math.cos(angle) * force * 0.5;
-        this.velocity.y -= Math.sin(angle) * force * 0.5;
-        this.size = this.baseSize * (1 + force);
-      } else {
-        this.size = this.baseSize;
-      }
+class CyberParticleSystem {
+    constructor() {
+        this.canvas = document.createElement('canvas');
+        this.ctx = this.canvas.getContext('2d', { alpha: false });
+        this.particles = [];
+        this.connections = [];
+        this.viewportBounds = {};
+        this.lastFrameTime = 0;
+        this.frameInterval = 1000 / 60;
+        
+        // Настройка canvas
+        this.canvas.style.position = 'fixed';
+        this.canvas.style.top = '0';
+        this.canvas.style.left = '0';
+        this.canvas.style.width = '100%';
+        this.canvas.style.height = '100%';
+        this.canvas.style.zIndex = '-1';
+        this.canvas.style.pointerEvents = 'none';
+        document.body.prepend(this.canvas);
+        
+        this.resizeCanvas();
+        this.bindEvents();
+        this.init();
     }
 
-    // Add some random movement
-    this.velocity.x += (Math.random() - 0.5) * 0.1;
-    this.velocity.y += (Math.random() - 0.5) * 0.1;
+    resizeCanvas() {
+        const dpr = window.devicePixelRatio || 1;
+        this.canvas.width = window.innerWidth * dpr;
+        this.canvas.height = window.innerHeight * dpr;
+        this.ctx.scale(dpr, dpr);
 
-    // Dampen velocity
-    this.velocity.x *= 0.99;
-    this.velocity.y *= 0.99;
+        // Расширенные границы для проверки видимости
+        this.viewportBounds = {
+            left: -50,
+            right: this.canvas.width + 50,
+            top: -50,
+            bottom: this.canvas.height + 50
+        };
+    }
 
-    // Reset position if out of bounds
-    if (this.x < 0) this.x = window.innerWidth;
-    if (this.x > window.innerWidth) this.x = 0;
-    if (this.y < 0) this.y = window.innerHeight;
-    if (this.y > window.innerHeight) this.y = 0;
+    bindEvents() {
+        let resizeTimeout;
+        window.addEventListener('resize', () => {
+            if (resizeTimeout) clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(() => {
+                this.resizeCanvas();
+                this.particles = [];
+                this.init();
+            }, 250);
+        });
+    }
 
-    // Update alpha
-    this.alpha = Math.min(1, Math.max(0.1, this.alpha + (Math.random() - 0.5) * 0.01));
-  }
+    init() {
+        const particleCount = window.innerWidth < 768 ? 30 : 60;
+        for (let i = 0; i < particleCount; i++) {
+            this.particles.push(this.createParticle());
+        }
+        this.animate();
+    }
 
-  draw(ctx) {
-    ctx.beginPath();
-    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-    ctx.fillStyle = `rgba(${this.color}, ${this.alpha})`;
-    ctx.fill();
+    createParticle() {
+        const currentTheme = getComputedStyle(document.documentElement);
+        const primary = currentTheme.getPropertyValue('--primary').trim();
+        const secondary = currentTheme.getPropertyValue('--secondary').trim();
+        const accent = currentTheme.getPropertyValue('--accent').trim();
+        
+        return {
+            x: Math.random() * this.canvas.width,
+            y: Math.random() * this.canvas.height,
+            size: Math.random() * 2 + 1,
+            color: [primary, secondary, accent][Math.floor(Math.random() * 3)],
+            baseColor: [primary, secondary, accent][Math.floor(Math.random() * 3)],
+            speedX: (Math.random() - 0.5) * 0.5,
+            speedY: (Math.random() - 0.5) * 0.5,
+            pulseSpeed: Math.random() * 0.02 + 0.01,
+            glowSize: Math.random() * 15 + 10,
+            connectDistance: Math.random() * 150 + 100,
+            opacity: Math.random() * 0.5 + 0.5,
+            isVisible: true
+        };
+    }
 
-    // Add glow effect
-    ctx.shadowBlur = 15;
-    ctx.shadowColor = `rgba(${this.color}, ${this.alpha * 0.5})`;
-  }
+    updateParticleColors(theme) {
+        const colors = [theme.primary, theme.secondary, theme.accent];
+        this.particles.forEach(particle => {
+            particle.color = colors[Math.floor(Math.random() * colors.length)];
+            particle.baseColor = particle.color;
+        });
+    }
 
-  updateColors(theme) {
-    this.possibleColors = [
-      theme['primary-rgb'],
-      theme['secondary-rgb'] || theme['primary-rgb'],
-      theme['accent-rgb']
-    ];
-    this.color = this.possibleColors[Math.floor(Math.random() * this.possibleColors.length)];
-  }
+    isParticleVisible(particle) {
+        return particle.x >= this.viewportBounds.left &&
+               particle.x <= this.viewportBounds.right &&
+               particle.y >= this.viewportBounds.top &&
+               particle.y <= this.viewportBounds.bottom;
+    }
+
+    drawGlow(x, y, color, size) {
+        if (!this.glowGradient) {
+            this.glowGradient = this.ctx.createRadialGradient(0, 0, 0, 0, 0, size);
+            this.glowGradient.addColorStop(0, 'rgba(255, 255, 255, 0.3)');
+            this.glowGradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        }
+        
+        this.ctx.save();
+        this.ctx.translate(x, y);
+        this.ctx.fillStyle = this.glowGradient;
+        this.ctx.fillRect(-size, -size, size * 2, size * 2);
+        this.ctx.restore();
+    }
+
+    drawConnection(p1, p2, distance) {
+        const opacity = 1 - (distance / p1.connectDistance);
+        this.ctx.strokeStyle = `${p1.color.replace('rgb', 'rgba').replace(')', `, ${opacity * 0.2})`)}`;
+        this.ctx.beginPath();
+        this.ctx.moveTo(p1.x, p1.y);
+        this.ctx.lineTo(p2.x, p2.y);
+        this.ctx.stroke();
+    }
+
+    drawParticle(particle) {
+        if (!particle.isVisible) return;
+
+        const pulse = Math.sin(Date.now() * particle.pulseSpeed) * 0.5 + 0.5;
+        const size = particle.size * (1 + pulse * 0.3);
+        
+        this.drawGlow(particle.x, particle.y, particle.color, particle.glowSize);
+
+        this.ctx.beginPath();
+        this.ctx.fillStyle = particle.color;
+        this.ctx.shadowColor = particle.color;
+        this.ctx.shadowBlur = 15;
+        this.ctx.globalAlpha = particle.opacity * (0.7 + pulse * 0.3);
+        
+        // Оптимизированное рисование шестиугольника
+        const angleStep = Math.PI / 3;
+        this.ctx.beginPath();
+        for (let i = 0; i < 6; i++) {
+            const angle = i * angleStep;
+            const x = particle.x + size * Math.cos(angle);
+            const y = particle.y + size * Math.sin(angle);
+            i === 0 ? this.ctx.moveTo(x, y) : this.ctx.lineTo(x, y);
+        }
+        this.ctx.closePath();
+        this.ctx.fill();
+    }
+
+    update() {
+        this.particles.forEach(particle => {
+            particle.x += particle.speedX;
+            particle.y += particle.speedY;
+
+            // Отражение от краев
+            if (particle.x < 0 || particle.x > this.canvas.width) particle.speedX *= -1;
+            if (particle.y < 0 || particle.y > this.canvas.height) particle.speedY *= -1;
+
+            // Обновление видимости
+            particle.isVisible = this.isParticleVisible(particle);
+        });
+    }
+
+    findConnections() {
+        this.connections = [];
+        const visibleParticles = this.particles.filter(p => p.isVisible);
+        
+        for (let i = 0; i < visibleParticles.length; i++) {
+            const p1 = visibleParticles[i];
+            for (let j = i + 1; j < visibleParticles.length; j++) {
+                const p2 = visibleParticles[j];
+                const dx = p1.x - p2.x;
+                const dy = p1.y - p2.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                if (distance < p1.connectDistance) {
+                    this.connections.push({ p1, p2, distance });
+                }
+            }
+        }
+    }
+
+    animate(currentTime) {
+        requestAnimationFrame(time => this.animate(time));
+
+        // Ограничение FPS
+        if (currentTime - this.lastFrameTime < this.frameInterval) return;
+        this.lastFrameTime = currentTime;
+
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        
+        this.update();
+        this.findConnections();
+
+        // Пакетный рендеринг
+        this.ctx.save();
+        this.connections.forEach(conn => this.drawConnection(conn.p1, conn.p2, conn.distance));
+        this.ctx.restore();
+
+        this.ctx.save();
+        this.particles.forEach(particle => {
+            if (particle.isVisible) {
+                this.drawParticle(particle);
+            }
+        });
+        this.ctx.restore();
+    }
 }
 
-class ParticleSystem {
-  constructor() {
-    this.canvas = document.createElement('canvas');
-    this.ctx = this.canvas.getContext('2d');
-    this.particles = [];
-    this.mouse = { x: null, y: null };
-    
-    this.canvas.style.position = 'fixed';
-    this.canvas.style.top = '0';
-    this.canvas.style.left = '0';
-    this.canvas.style.width = '100%';
-    this.canvas.style.height = '100%';
-    this.canvas.style.pointerEvents = 'none';
-    this.canvas.style.zIndex = '-1';
-    
-    document.querySelector('.game-particles').appendChild(this.canvas);
-    
-    this.resize();
-    window.addEventListener('resize', () => this.resize());
-    window.addEventListener('mousemove', (e) => {
-      this.mouse.x = e.clientX;
-      this.mouse.y = e.clientY;
-    });
-    
-    this.particleTypes = {
-      normal: {
-        size: { min: 1, max: 3 },
-        speed: { min: 0.1, max: 0.3 },
-        colors: [
-          '225, 190, 231', // Light purple
-          '142, 36, 170',  // Deep purple
-          '171, 71, 188'   // Medium purple
-        ]
-      },
-      burst: {
-        size: { min: 2, max: 5 },
-        speed: { min: 1, max: 2 },
-        colors: [
-          '255, 255, 255', // White
-          '225, 190, 231', // Light purple
-          '142, 36, 170'   // Deep purple
-        ]
-      }
-    };
-    
-    this.init();
-    this.addEventListeners();
-    this.animate();
-  }
-  
-  init() {
-    const particleCount = Math.min(100, window.innerWidth / 20);
-    const type = this.particleTypes.normal;
-    
-    for (let i = 0; i < particleCount; i++) {
-      const particle = new GameParticle(
-        Math.random() * this.canvas.width,
-        Math.random() * this.canvas.height,
-        Math.random() * (type.size.max - type.size.min) + type.size.min,
-        Math.random() * (type.speed.max - type.speed.min) + type.speed.min,
-        type.colors[Math.floor(Math.random() * type.colors.length)]
-      );
-      this.particles.push(particle);
-    }
-    
-    // Add particle burst on click
-    this.canvas.addEventListener('click', (e) => {
-      this.createParticleBurst(e.clientX, e.clientY);
-    });
-
-    // Expose the system globally for theme updates
-    window.particleSystem = this;
-  }
-  
-  createParticleBurst(x, y) {
-    const burstCount = 20;
-    const type = this.particleTypes.burst;
-    
-    for (let i = 0; i < burstCount; i++) {
-      const particle = new GameParticle(
-        x,
-        y,
-        Math.random() * (type.size.max - type.size.min) + type.size.min,
-        Math.random() * (type.speed.max - type.speed.min) + type.speed.min,
-        type.colors[Math.floor(Math.random() * type.colors.length)]
-      );
-      
-      this.particles.push(particle);
-    }
-  }
-  
-  addEventListeners() {
-    // No existing event listeners to add
-  }
-  
-  resize() {
-    this.canvas.width = window.innerWidth;
-    this.canvas.height = window.innerHeight;
-  }
-  
-  animate() {
-    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-    
-    // Enhanced motion blur
-    this.ctx.fillStyle = 'rgba(26, 0, 44, 0.1)';
-    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-    
-    this.particles.forEach(particle => {
-      particle.update(this.mouse);
-      particle.draw(this.ctx);
-    });
-    
-    // Add glow effect to particles
-    this.ctx.shadowBlur = 15;
-    this.ctx.shadowColor = 'rgba(142, 36, 170, 0.5)';
-    
-    requestAnimationFrame(() => this.animate());
-  }
-
-  updateParticleColors(theme) {
-    this.particleTypes = {
-      normal: {
-        size: { min: 1, max: 3 },
-        speed: { min: 0.1, max: 0.3 },
-        colors: [
-          theme['primary-rgb'],
-          theme['secondary-rgb'] || theme['primary-rgb'],
-          theme['accent-rgb']
-        ]
-      },
-      burst: {
-        size: { min: 2, max: 5 },
-        speed: { min: 1, max: 2 },
-        colors: [
-          '255, 255, 255', // White
-          theme['primary-rgb'],
-          theme['accent-rgb']
-        ]
-      }
-    };
-
-    // Update existing particles' colors
-    this.particles.forEach(particle => {
-      particle.updateColors(theme);
-    });
-  }
-}
-
-// Initialize particle system
-window.addEventListener('DOMContentLoaded', () => {
-  new ParticleSystem();
+document.addEventListener('DOMContentLoaded', () => {
+    window.particleSystem = new CyberParticleSystem();
 });

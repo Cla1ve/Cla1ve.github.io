@@ -73,6 +73,14 @@ document.addEventListener('DOMContentLoaded', () => {
     document.body.style.setProperty('--accent', theme.accent);
     document.body.style.setProperty('--bg', theme.bg);
     
+    // Обновляем цвет шапки
+    const header = document.querySelector('header');
+    if (header) {
+      header.style.backgroundColor = `rgba(${theme['primary-rgb']}, 0.1)`;
+      header.style.backdropFilter = 'blur(10px)';
+      header.style.borderBottom = `1px solid rgba(${theme['primary-rgb']}, 0.2)`;
+    }
+
     // Update all text shadows
     const textElements = document.querySelectorAll('.gamer-name, .about h2, .projects h2');
     textElements.forEach(el => {
