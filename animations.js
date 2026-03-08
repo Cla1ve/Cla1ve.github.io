@@ -25,7 +25,14 @@ document.addEventListener("DOMContentLoaded", () => {
       x = 0
     } = options;
 
-    if (!(node instanceof Element) || reduceMotionQuery.matches || typeof node.animate !== "function") {
+    if (!(node instanceof Element) || typeof node.animate !== "function") {
+      return;
+    }
+
+    if (reduceMotionQuery.matches) {
+      node.style.opacity = "1";
+      node.style.visibility = "visible";
+      node.style.transform = "none";
       return;
     }
 
@@ -46,7 +53,7 @@ document.addEventListener("DOMContentLoaded", () => {
         duration,
         delay,
         easing: "cubic-bezier(0.22, 1, 0.36, 1)",
-        fill: "none"
+        fill: "forwards"
       }
     );
   }
@@ -142,10 +149,11 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
+    const mobile = !isDesktopQuery.matches;
+
     gsap.to(".hero-halo-a", {
-      x: 10,
-      y: -12,
-      scale: 1.06,
+      y: mobile ? -6 : -12,
+      scale: mobile ? 1.03 : 1.06,
       duration: 8.4,
       repeat: -1,
       yoyo: true,
@@ -153,42 +161,9 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     gsap.to(".hero-halo-b", {
-      x: -12,
-      y: 14,
-      scale: 1.05,
+      y: mobile ? 8 : 14,
+      scale: mobile ? 1.02 : 1.05,
       duration: 9.6,
-      repeat: -1,
-      yoyo: true,
-      ease: "sine.inOut"
-    });
-
-    gsap.to(".hero-gridlines", {
-      rotate: 0.7,
-      scale: 1.018,
-      duration: 14,
-      repeat: -1,
-      yoyo: true,
-      ease: "sine.inOut"
-    });
-
-    gsap.to(".hero-stage-orbit-a", {
-      rotate: 9,
-      duration: 28,
-      repeat: -1,
-      ease: "none"
-    });
-
-    gsap.to(".hero-stage-orbit-b", {
-      rotate: -12,
-      duration: 34,
-      repeat: -1,
-      ease: "none"
-    });
-
-    gsap.to(".hero-stage-sheen", {
-      xPercent: 6,
-      yPercent: -4,
-      duration: 11,
       repeat: -1,
       yoyo: true,
       ease: "sine.inOut"
@@ -210,41 +185,75 @@ document.addEventListener("DOMContentLoaded", () => {
       ease: "sine.inOut"
     });
 
-    gsap.to(".portrait-reflection", {
-      xPercent: 5,
-      opacity: 0.95,
-      duration: 6.4,
-      repeat: -1,
-      yoyo: true,
-      ease: "sine.inOut"
-    });
+    if (!mobile) {
+      gsap.to(".hero-gridlines", {
+        rotate: 0.7,
+        scale: 1.018,
+        duration: 14,
+        repeat: -1,
+        yoyo: true,
+        ease: "sine.inOut"
+      });
 
-    gsap.to(".hero-chip-about", {
-      y: -4,
-      x: -2,
-      duration: 7.4,
-      repeat: -1,
-      yoyo: true,
-      ease: "sine.inOut"
-    });
+      gsap.to(".hero-stage-orbit-a", {
+        rotate: 9,
+        duration: 28,
+        repeat: -1,
+        ease: "none"
+      });
 
-    gsap.to(".hero-chip-game", {
-      y: 4,
-      x: 2,
-      duration: 8.2,
-      repeat: -1,
-      yoyo: true,
-      ease: "sine.inOut"
-    });
+      gsap.to(".hero-stage-orbit-b", {
+        rotate: -12,
+        duration: 34,
+        repeat: -1,
+        ease: "none"
+      });
 
-    gsap.to(".hero-chip-tech", {
-      y: -3,
-      x: 1,
-      duration: 8.8,
-      repeat: -1,
-      yoyo: true,
-      ease: "sine.inOut"
-    });
+      gsap.to(".hero-stage-sheen", {
+        xPercent: 6,
+        yPercent: -4,
+        duration: 11,
+        repeat: -1,
+        yoyo: true,
+        ease: "sine.inOut"
+      });
+
+      gsap.to(".portrait-reflection", {
+        xPercent: 5,
+        opacity: 0.95,
+        duration: 6.4,
+        repeat: -1,
+        yoyo: true,
+        ease: "sine.inOut"
+      });
+
+      gsap.to(".hero-chip-about", {
+        y: -4,
+        x: -2,
+        duration: 7.4,
+        repeat: -1,
+        yoyo: true,
+        ease: "sine.inOut"
+      });
+
+      gsap.to(".hero-chip-game", {
+        y: 4,
+        x: 2,
+        duration: 8.2,
+        repeat: -1,
+        yoyo: true,
+        ease: "sine.inOut"
+      });
+
+      gsap.to(".hero-chip-tech", {
+        y: -3,
+        x: 1,
+        duration: 8.8,
+        repeat: -1,
+        yoyo: true,
+        ease: "sine.inOut"
+      });
+    }
   }
 
   function setupScrollParallax() {
@@ -266,41 +275,47 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     gsap.to(".hero-copy", {
-      yPercent: -7,
+      yPercent: -8,
+      rotateX: 1,
+      z: -15,
       ease: "none",
       scrollTrigger: {
         trigger: "#home",
         start: "top top",
         end: "bottom top",
-        scrub: 1.15
+        scrub: 1.2
       }
     });
 
     gsap.to(".portrait-stack", {
-      yPercent: -10,
+      yPercent: -12,
+      scale: 0.97,
+      rotateY: 2,
       ease: "none",
       scrollTrigger: {
         trigger: "#home",
         start: "top top",
         end: "bottom top",
-        scrub: 1.35
+        scrub: 1.4
       }
     });
 
     gsap.to(".hero-stage", {
-      yPercent: -5,
+      yPercent: -6,
       scale: 1.02,
+      rotateX: 1.5,
       ease: "none",
       scrollTrigger: {
         trigger: "#home",
         start: "top top",
         end: "bottom top",
-        scrub: 1.25
+        scrub: 1.3
       }
     });
 
     gsap.to(".hero-stage-orbit-a", {
-      rotate: 16,
+      rotate: 18,
+      scale: 1.04,
       ease: "none",
       scrollTrigger: {
         trigger: "#home",
@@ -311,7 +326,8 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     gsap.to(".hero-stage-orbit-b", {
-      rotate: -19,
+      rotate: -22,
+      scale: 0.96,
       ease: "none",
       scrollTrigger: {
         trigger: "#home",
@@ -320,6 +336,11 @@ document.addEventListener("DOMContentLoaded", () => {
         scrub: 1
       }
     });
+
+    window.addEventListener("load", () => {
+      ScrollTrigger.refresh();
+    });
+    setTimeout(() => ScrollTrigger.refresh(), 100);
   }
 
   function setupSectionReveals() {
@@ -328,21 +349,39 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
+    const desktop = isDesktopQuery.matches;
+
     revealItems.forEach((item) => {
       const config = getRevealMotion(item);
-      gsap.from(item, {
-        y: config.distance,
-        scale: config.scale,
-        autoAlpha: 0,
-        filter: config.blur > 0 ? `blur(${config.blur}px)` : "blur(0px)",
-        duration: config.duration / 1000,
-        ease: "power3.out",
-        scrollTrigger: {
-          trigger: item,
-          start: "top 84%",
-          once: true
+      const rotX = desktop ? -3 : -1.5;
+      const tz = desktop ? -40 : -20;
+
+      gsap.fromTo(item,
+        {
+          autoAlpha: 0,
+          y: config.distance,
+          rotateX: rotX,
+          z: tz,
+          scale: config.scale,
+          filter: config.blur > 0 ? `blur(${config.blur}px)` : "blur(0px)"
+        },
+        {
+          autoAlpha: 1,
+          y: 0,
+          rotateX: 0,
+          z: 0,
+          scale: 1,
+          filter: "blur(0px)",
+          duration: config.duration / 1000,
+          ease: "power3.out",
+          clearProps: "filter,rotateX,z",
+          scrollTrigger: {
+            trigger: item,
+            start: "top 86%",
+            once: true
+          }
         }
-      });
+      );
     });
   }
 
@@ -354,20 +393,20 @@ document.addEventListener("DOMContentLoaded", () => {
     const tiltCards = Array.from(document.querySelectorAll("[data-tilt-card]"));
     tiltCards.forEach((card) => {
       const rotateXTo = gsap.quickTo(card, "rotateX", {
-        duration: 0.42,
-        ease: "power3.out"
+        duration: 0.5,
+        ease: "elastic.out(1, 0.6)"
       });
       const rotateYTo = gsap.quickTo(card, "rotateY", {
-        duration: 0.42,
-        ease: "power3.out"
+        duration: 0.5,
+        ease: "elastic.out(1, 0.6)"
       });
       const xTo = gsap.quickTo(card, "x", {
-        duration: 0.42,
-        ease: "power3.out"
+        duration: 0.5,
+        ease: "elastic.out(1, 0.6)"
       });
       const yTo = gsap.quickTo(card, "y", {
-        duration: 0.42,
-        ease: "power3.out"
+        duration: 0.5,
+        ease: "elastic.out(1, 0.6)"
       });
 
       const reset = () => {
@@ -399,12 +438,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const targets = Array.from(document.querySelectorAll(".hero-actions .btn, .project-copy .btn, .sync-start, .sync-retry, .control-btn"));
     targets.forEach((target) => {
       const xTo = gsap.quickTo(target, "x", {
-        duration: 0.28,
-        ease: "power3.out"
+        duration: 0.36,
+        ease: "elastic.out(1, 0.5)"
       });
       const yTo = gsap.quickTo(target, "y", {
-        duration: 0.28,
-        ease: "power3.out"
+        duration: 0.36,
+        ease: "elastic.out(1, 0.5)"
       });
 
       target.addEventListener("pointermove", (event) => {
@@ -422,26 +461,8 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  function enforceHeroActionsVisibility() {
-    const heroActions = document.querySelector(".hero-actions");
-    const heroButtons = Array.from(document.querySelectorAll(".hero-actions .btn"));
-
-    if (heroActions instanceof HTMLElement) {
-      heroActions.style.opacity = "1";
-      heroActions.style.visibility = "visible";
-      heroActions.style.display = "flex";
-    }
-
-    heroButtons.forEach((button) => {
-      if (!(button instanceof HTMLElement)) {
-        return;
-      }
-
-      button.style.opacity = "1";
-      button.style.visibility = "visible";
-      button.style.display = "inline-flex";
-      button.style.pointerEvents = "auto";
-    });
+  function clearInitialHiddenStates() {
+    document.documentElement.classList.add("loaded");
   }
 
   function setupGsapMotion() {
@@ -463,69 +484,58 @@ document.addEventListener("DOMContentLoaded", () => {
     const introTimeline = gsap.timeline({
       defaults: {
         ease: "power3.out"
-      }
+      },
+      onComplete: clearInitialHiddenStates
     });
 
+    const desktop = isDesktopQuery.matches;
+
     introTimeline
-      .from(".nav-shell", {
-        y: -18,
-        autoAlpha: 0,
-        duration: 0.72
-      }, 0)
-      .from(".hero-stage", {
-        y: 24,
-        scale: 0.975,
-        autoAlpha: 0,
-        filter: "blur(14px)",
-        duration: 1.18
-      }, 0.08)
-      .from(".portrait-card", {
-        y: isDesktopQuery.matches ? 32 : 24,
-        scale: 0.99,
-        rotateY: isDesktopQuery.matches ? -6 : -2,
-        rotateX: isDesktopQuery.matches ? 4 : 0,
-        autoAlpha: 0,
-        filter: "blur(10px)",
-        duration: 1.02
-      }, 0.18)
-      .from(".hero-stage-orbit", {
-        scale: 0.94,
-        autoAlpha: 0,
-        stagger: 0.09,
-        duration: 1
-      }, 0.26)
-      .from(".hero-chip", {
-        y: 12,
-        x: (_, target) => target.classList.contains("hero-chip-game") ? 12 : -12,
-        autoAlpha: 0,
-        stagger: 0.07,
-        duration: 0.72
-      }, 0.34)
-      .from(".hero-copy-panel", {
-        y: 28,
-        scale: 0.985,
-        autoAlpha: 0,
-        filter: "blur(10px)",
-        duration: 0.94
-      }, 0.18)
-      .from(".hero-title", {
-        y: 34,
-        autoAlpha: 0,
-        filter: "blur(8px)",
-        duration: 0.96
-      }, 0.34)
-      .from(".hero-lead", {
-        y: 16,
-        autoAlpha: 0,
-        duration: 0.72
-      }, 0.5)
-      .from(".hero-actions .btn", {
-        y: 14,
-        scale: 0.992,
-        stagger: 0.08,
-        duration: 0.62,
-        clearProps: "transform"
-      }, 0.6);
+      .fromTo(".nav-shell",
+        { autoAlpha: 0, y: -18 },
+        { autoAlpha: 1, y: 0, duration: 0.72 },
+        0
+      )
+      .fromTo(".hero-stage",
+        { autoAlpha: 0, y: 30, scale: 0.97, rotateX: desktop ? -2 : 0, z: desktop ? -30 : 0, filter: "blur(14px)" },
+        { autoAlpha: 1, y: 0, scale: 1, rotateX: 0, z: 0, filter: "blur(0px)", duration: 1.25, clearProps: "filter,rotateX,z" },
+        0.06
+      )
+      .fromTo(".portrait-card",
+        { autoAlpha: 0, y: desktop ? 36 : 26, scale: 0.985, rotateY: desktop ? -8 : -3, rotateX: desktop ? 4 : 1, z: desktop ? -60 : -20, filter: "blur(10px)" },
+        { autoAlpha: 1, y: 0, scale: 1, rotateY: 0, rotateX: 0, z: 0, filter: "blur(0px)", duration: 1.1, clearProps: "filter,rotateY,rotateX,z" },
+        0.16
+      )
+      .fromTo(".hero-stage-orbit",
+        { autoAlpha: 0, scale: 0.9 },
+        { autoAlpha: 1, scale: 1, stagger: 0.1, duration: 1.05 },
+        0.24
+      )
+      .fromTo(".hero-chip",
+        { autoAlpha: 0, y: 14, z: -20, x: (_, target) => target.classList.contains("hero-chip-game") ? 14 : -14 },
+        { autoAlpha: 1, y: 0, z: 0, x: 0, stagger: 0.08, duration: 0.78, ease: "back.out(1.4)", clearProps: "z" },
+        0.32
+      )
+      .fromTo(".hero-copy-panel",
+        { autoAlpha: 0, y: 32, scale: 0.98, rotateY: desktop ? 2 : 0, z: desktop ? -30 : 0, filter: "blur(10px)" },
+        { autoAlpha: 1, y: 0, scale: 1, rotateY: 0, z: 0, filter: "blur(0px)", duration: 1, clearProps: "filter,rotateY,z" },
+        0.14
+      )
+      .fromTo(".hero-title",
+        { autoAlpha: 0, y: 38, filter: "blur(8px)" },
+        { autoAlpha: 1, y: 0, filter: "blur(0px)", duration: 1, clearProps: "filter" },
+        0.32
+      )
+      .fromTo(".hero-lead",
+        { autoAlpha: 0, y: 18 },
+        { autoAlpha: 1, y: 0, duration: 0.76 },
+        0.48
+      )
+      .fromTo(".hero-actions .btn",
+        { autoAlpha: 0, y: 16, scale: 0.99 },
+        { autoAlpha: 1, y: 0, scale: 1, stagger: 0.09, duration: 0.68, ease: "back.out(1.6)", clearProps: "transform" },
+        0.58
+      );
 
     setupAmbientLoops();
     setupScrollParallax();
@@ -538,7 +548,6 @@ document.addEventListener("DOMContentLoaded", () => {
   if (!setupGsapMotion()) {
     runHeroIntroFallback();
     setupRevealFallback();
+    clearInitialHiddenStates();
   }
-
-  enforceHeroActionsVisibility();
 });

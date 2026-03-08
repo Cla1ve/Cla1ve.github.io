@@ -31,16 +31,26 @@ document.addEventListener("DOMContentLoaded", () => {
       this.scoreNode = root.querySelector("[data-sync-score]");
       this.reduceMotionQuery = reduceMotionQuery;
       this.reducedMotion = reduceMotionQuery.matches;
-      this.pointer = {
-        x: 0,
-        y: 0,
-        active: false
-      };
+      this.isMobile = window.innerWidth < 768;
+      this.isVisible = false;
+      this.pointer = { x: 0, y: 0, active: false };
       this.orbs = [];
       this.trail = [];
       this.ripples = [];
+      this.burstParticles = [];
       this.score = 0;
+      this.combo = 0;
+      this.lastHitTime = 0;
+      this.comboDecay = 750;
+      this.coreLives = 3;
+      this.coreDamageTime = 0;
+      this.spawnNext = 0;
+      this.shakeOffset = { x: 0, y: 0 };
+      this.shakeDecay = 0;
+      this.flashAlpha = 0;
       this.completed = false;
+      this.gameOver = false;
+      this.celebrationPhase = 0;
       this.active = false;
       this.lastFrameTime = 0;
       this.dpr = 1;
@@ -48,14 +58,13 @@ document.addEventListener("DOMContentLoaded", () => {
       this.height = 0;
       this.palette = this.readPalette();
 
-      if (!this.ctx || !this.canvas) {
-        return;
-      }
+      if (!this.ctx || !this.canvas) return;
 
       this.resize();
-      this.createOrbs();
+      this.spawnIdleOrbs();
       this.setScore(0);
       this.bindEvents();
+      this.setupVisibilityObserver();
       this.render();
     }
 
@@ -69,46 +78,33 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     colorWithAlpha(color, alpha) {
-      if (color.startsWith("rgba")) {
-        return color.replace(/rgba\(([^)]+),[^,]+\)$/, `rgba($1, ${alpha})`);
-      }
-
-      if (color.startsWith("rgb")) {
-        return color.replace("rgb", "rgba").replace(")", `, ${alpha})`);
-      }
-
+      if (color.startsWith("rgba")) return color.replace(/rgba\(([^)]+),[^,]+\)$/, `rgba($1, ${alpha})`);
+      if (color.startsWith("rgb")) return color.replace("rgb", "rgba").replace(")", `, ${alpha})`);
       const hex = color.replace("#", "");
-      const expanded = hex.length === 3
-        ? hex.split("").map((char) => char + char).join("")
-        : hex;
-      const value = Number.parseInt(expanded, 16);
-      const red = (value >> 16) & 255;
-      const green = (value >> 8) & 255;
-      const blue = value & 255;
-      return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
+      const expanded = hex.length === 3 ? hex.split("").map((c) => c + c).join("") : hex;
+      const v = Number.parseInt(expanded, 16);
+      return `rgba(${(v >> 16) & 255}, ${(v >> 8) & 255}, ${v & 255}, ${alpha})`;
     }
 
-    getOrbCount() {
-      if (this.width < 480) {
-        return 4;
-      }
-
-      if (this.width < 900) {
-        return 5;
-      }
-
-      return 6;
+    setupVisibilityObserver() {
+      const observer = new IntersectionObserver((entries) => { this.isVisible = entries[0].isIntersecting; }, { threshold: 0.05 });
+      observer.observe(this.root);
     }
 
     getTargetScore() {
-      return this.getOrbCount() * 4;
+      return 24;
+    }
+
+    getCoreRadius() {
+      return Math.min(this.width, this.height) * 0.08;
     }
 
     resize() {
       const bounds = this.root.getBoundingClientRect();
+      this.isMobile = window.innerWidth < 768;
       this.width = Math.max(1, Math.round(bounds.width));
       this.height = Math.max(1, Math.round(bounds.height));
-      this.dpr = Math.min(window.devicePixelRatio || 1, 2);
+      this.dpr = Math.min(window.devicePixelRatio || 1, this.isMobile ? 1.5 : 2);
       this.canvas.width = this.width * this.dpr;
       this.canvas.height = this.height * this.dpr;
       this.canvas.style.width = `${this.width}px`;
@@ -116,320 +112,370 @@ document.addEventListener("DOMContentLoaded", () => {
       this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     }
 
-    createOrbs() {
-      const count = this.getOrbCount();
-      const spreadX = Math.min(this.width * 0.26, 170);
-      const spreadY = Math.min(this.height * 0.22, 130);
-      const centerX = this.width / 2;
-      const centerY = this.height / 2;
+    spawnOrb() {
+      const cx = this.width / 2;
+      const cy = this.height / 2;
+      const margin = Math.max(this.width, this.height);
+      const angle = Math.random() * Math.PI * 2;
+      const x = cx + Math.cos(angle) * margin * 0.55;
+      const y = cy + Math.sin(angle) * margin * 0.55;
+      const dx = cx - x;
+      const dy = cy - y;
+      const len = Math.hypot(dx, dy) || 1;
+      const baseSpeed = (this.isMobile ? 1.5 : 1.95) + this.score * 0.03 + Math.random() * 0.4;
+      const speed = this.reducedMotion ? baseSpeed * 0.6 : baseSpeed;
+      const radius = 16 + Math.random() * 6;
 
-      this.orbs = Array.from({ length: count }, (_, index) => {
-        const angle = (Math.PI * 2 * index) / count - Math.PI / 2;
-        const radius = Math.max(24, Math.min(this.width, this.height) * 0.048);
-
-        return {
-          baseX: centerX + Math.cos(angle) * spreadX,
-          baseY: centerY + Math.sin(angle) * spreadY,
-          x: centerX + Math.cos(angle) * spreadX,
-          y: centerY + Math.sin(angle) * spreadY,
-          radius,
-          energy: 0,
-          offset: Math.random() * Math.PI * 2,
-          driftX: 10 + Math.random() * 12,
-          driftY: 10 + Math.random() * 12,
-          speed: 0.6 + Math.random() * 0.5,
-          lastHit: 0
-        };
+      this.orbs.push({
+        x, y,
+        vx: (dx / len) * speed,
+        vy: (dy / len) * speed,
+        radius,
+        energy: 0,
+        offset: Math.random() * Math.PI * 2
       });
     }
 
-    setScore(nextScore) {
-      this.score = nextScore;
-      if (this.scoreNode) {
-        this.scoreNode.textContent = String(this.score);
-      }
-
-      if (!this.completed && this.score >= this.getTargetScore()) {
-        this.completed = true;
-        this.root.classList.add("is-complete");
-        this.ripples.push({
-          x: this.width / 2,
-          y: this.height / 2,
-          radius: 24,
-          alpha: 0.55,
-          speed: 4.8
+    spawnIdleOrbs() {
+      this.orbs = [];
+      const count = this.isMobile ? 2 : 3;
+      const cx = this.width / 2;
+      const cy = this.height / 2;
+      const r = Math.min(this.width, this.height) * 0.35;
+      for (let i = 0; i < count; i++) {
+        const a = (Math.PI * 2 * i) / count + performance.now() * 0.0002;
+        this.orbs.push({
+          x: cx + Math.cos(a) * r,
+          y: cy + Math.sin(a) * r,
+          vx: 0, vy: 0,
+          radius: 14,
+          energy: 0,
+          offset: i * 0.5,
+          idle: true
         });
+      }
+    }
+
+    spawnBurst(x, y, count, bonus) {
+      for (let i = 0; i < count; i++) {
+        const a = (Math.PI * 2 * i) / count + Math.random() * 0.3;
+        const s = 1.5 + Math.random() * 3;
+        this.burstParticles.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 1, radius: bonus ? 2.5 : 1.5, isBonus: bonus });
+      }
+    }
+
+    triggerShake(i) { this.shakeDecay = i; }
+    triggerFlash(a) { this.flashAlpha = Math.max(this.flashAlpha, a); }
+
+    setScore(v) {
+      this.score = v;
+      if (this.scoreNode) this.scoreNode.textContent = String(v);
+      if (!this.completed && !this.gameOver && v >= this.getTargetScore()) {
+        this.completed = true;
+        this.celebrationPhase = 1;
+        this.root.classList.add("is-complete");
+        this.triggerFlash(0.15);
+        this.triggerShake(5);
+        this.spawnBurst(this.width / 2, this.height / 2, 28, true);
+        for (let i = 0; i < 5; i++) {
+          this.ripples.push({ x: this.width / 2, y: this.height / 2, radius: 12 + i * 20, alpha: 0.4, speed: 4 });
+        }
       }
     }
 
     begin() {
       this.active = true;
       this.completed = false;
+      this.gameOver = false;
+      this.celebrationPhase = 0;
+      this.coreLives = 3;
+      this.coreDamageTime = 0;
+      this.combo = 0;
+      this.lastHitTime = 0;
+      this.spawnNext = performance.now() + (this.isMobile ? 250 : 420);
       this.pointer.active = false;
+      this.orbs = [];
       this.trail = [];
       this.ripples = [];
+      this.burstParticles = [];
+      this.shakeDecay = 0;
+      this.flashAlpha = 0;
       this.root.classList.add("is-active");
-      this.root.classList.remove("is-complete");
-      this.createOrbs();
+      this.root.classList.remove("is-complete", "is-gameover");
       this.setScore(0);
     }
 
-    updatePointer(event) {
-      const bounds = this.canvas.getBoundingClientRect();
-      this.pointer.x = event.clientX - bounds.left;
-      this.pointer.y = event.clientY - bounds.top;
+    updatePointer(e) {
+      const b = this.canvas.getBoundingClientRect();
+      this.pointer.x = e.clientX - b.left;
+      this.pointer.y = e.clientY - b.top;
     }
 
     addTrailPoint() {
-      this.trail.push({
-        x: this.pointer.x,
-        y: this.pointer.y,
-        life: 1
-      });
-
-      if (this.trail.length > 22) {
-        this.trail.shift();
-      }
+      this.trail.push({ x: this.pointer.x, y: this.pointer.y, life: 1 });
+      if (this.trail.length > 18) this.trail.shift();
     }
 
-    interact() {
-      const now = performance.now();
-
-      this.orbs.forEach((orb) => {
+    interact(now) {
+      this.orbs = this.orbs.filter((orb) => {
         const dx = this.pointer.x - orb.x;
         const dy = this.pointer.y - orb.y;
-        const distance = Math.hypot(dx, dy);
-        const threshold = orb.radius + 16;
+        if (Math.hypot(dx, dy) > orb.radius + 18) return true;
 
-        if (distance > threshold || now - orb.lastHit < 180) {
-          return;
+        if (this.comboDecay > 0 && now - this.lastHitTime < this.comboDecay) {
+          this.combo = Math.min(this.combo + 1, 6);
+        } else {
+          this.combo = 1;
         }
+        this.lastHitTime = now;
 
-        orb.lastHit = now;
-        orb.energy = 1;
-        this.ripples.push({
-          x: orb.x,
-          y: orb.y,
-          radius: orb.radius * 0.6,
-          alpha: 0.5,
-          speed: 3.2
-        });
-        this.setScore(this.score + 1);
+        const pts = Math.min(this.combo, 4);
+        this.spawnBurst(orb.x, orb.y, this.combo >= 3 ? 12 : 8, this.combo >= 3);
+        this.ripples.push({ x: orb.x, y: orb.y, radius: orb.radius, alpha: 0.5, speed: 3 });
+        this.triggerShake(1.5 + this.combo * 0.5);
+        this.setScore(this.score + pts);
+        return false;
       });
     }
 
     bindEvents() {
-      let resizeTimeout = 0;
+      let to = 0;
+      if (this.startButton) this.startButton.addEventListener("click", () => this.begin());
+      if (this.retryButton) this.retryButton.addEventListener("click", () => this.begin());
 
-      if (this.startButton) {
-        this.startButton.addEventListener("click", () => {
-          this.begin();
-        });
-      }
-
-      if (this.retryButton) {
-        this.retryButton.addEventListener("click", () => {
-          this.begin();
-        });
-      }
-
-      this.canvas.addEventListener("pointerdown", (event) => {
+      this.canvas.addEventListener("pointerdown", (e) => {
         this.pointer.active = true;
-        this.updatePointer(event);
+        this.updatePointer(e);
         this.addTrailPoint();
-        if (typeof this.canvas.setPointerCapture === "function") {
-          this.canvas.setPointerCapture(event.pointerId);
-        }
-        if (this.active) {
-          this.interact();
-        }
+        if (this.canvas.setPointerCapture) this.canvas.setPointerCapture(e.pointerId);
+        if (this.active && !this.gameOver) this.interact(performance.now());
       });
 
-      this.canvas.addEventListener("pointermove", (event) => {
-        this.updatePointer(event);
-        if (!this.active) {
-          return;
-        }
-
+      this.canvas.addEventListener("pointermove", (e) => {
+        this.updatePointer(e);
+        if (!this.active || this.gameOver) return;
         this.pointer.active = true;
         this.addTrailPoint();
-        this.interact();
+        this.interact(performance.now());
       });
 
-      ["pointerup", "pointercancel", "pointerleave"].forEach((eventName) => {
-        this.canvas.addEventListener(eventName, () => {
-          this.pointer.active = false;
-        });
+      ["pointerup", "pointercancel", "pointerleave"].forEach((n) => {
+        this.canvas.addEventListener(n, () => { this.pointer.active = false; });
       });
 
       window.addEventListener("resize", () => {
-        window.clearTimeout(resizeTimeout);
-        resizeTimeout = window.setTimeout(() => {
-          this.resize();
-          this.createOrbs();
-        }, 120);
+        clearTimeout(to);
+        to = setTimeout(() => { this.resize(); if (!this.active) this.spawnIdleOrbs(); }, 150);
       });
 
-      document.addEventListener("visibilitychange", () => {
-        if (!document.hidden) {
-          this.lastFrameTime = 0;
-        }
-      });
-
-      document.addEventListener("cla1ve:theme-change", () => {
-        this.palette = this.readPalette();
-      });
-
-      this.reduceMotionQuery.addEventListener("change", (event) => {
-        this.reducedMotion = event.matches;
-      });
+      document.addEventListener("visibilitychange", () => { if (!document.hidden) this.lastFrameTime = 0; });
+      document.addEventListener("cla1ve:theme-change", () => { this.palette = this.readPalette(); });
+      this.reduceMotionQuery.addEventListener("change", (e) => { this.reducedMotion = e.matches; });
     }
 
-    drawBackdrop() {
-      const ringRadius = Math.min(this.width, this.height) * 0.24;
+    drawCore(timestamp) {
+      const cx = this.width / 2;
+      const cy = this.height / 2;
+      const r = this.getCoreRadius();
+      const pulse = 0.85 + 0.15 * Math.sin(timestamp * 0.002);
+      const damage = this.coreDamageTime > 0 ? Math.min(1, (performance.now() - this.coreDamageTime) / 400) : 0;
+      const hurt = damage < 1 ? 0.3 * (1 - damage) : 0;
+
+      const grad = this.ctx.createRadialGradient(cx, cy, 0, cx, cy, r * 2);
+      grad.addColorStop(0, this.colorWithAlpha(this.palette.accentSoft, 0.4 * pulse));
+      grad.addColorStop(0.5, this.colorWithAlpha(this.palette.accent, 0.15 * pulse));
+      grad.addColorStop(1, this.colorWithAlpha(this.palette.accent, 0));
       this.ctx.beginPath();
-      this.ctx.strokeStyle = this.colorWithAlpha(this.palette.accentSoft, 0.12);
+      this.ctx.fillStyle = grad;
+      this.ctx.arc(cx, cy, r * 2, 0, Math.PI * 2);
+      this.ctx.fill();
+
+      this.ctx.beginPath();
+      this.ctx.strokeStyle = this.colorWithAlpha(this.palette.accentSoft, 0.5 * pulse + hurt);
+      this.ctx.lineWidth = 2;
+      this.ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      this.ctx.stroke();
+
+      this.ctx.beginPath();
+      this.ctx.strokeStyle = this.colorWithAlpha(this.palette.accent, 0.2 * pulse);
       this.ctx.lineWidth = 1;
-      this.ctx.arc(this.width / 2, this.height / 2, ringRadius, 0, Math.PI * 2);
+      this.ctx.arc(cx, cy, r * 1.4, 0, Math.PI * 2);
       this.ctx.stroke();
 
-      this.ctx.beginPath();
-      this.ctx.strokeStyle = this.colorWithAlpha(this.palette.accent, 0.08);
-      this.ctx.lineWidth = 1;
-      this.ctx.arc(this.width / 2, this.height / 2, ringRadius * 1.45, 0, Math.PI * 2);
-      this.ctx.stroke();
-    }
-
-    drawTrail() {
-      if (this.trail.length < 2) {
-        return;
-      }
-
-      this.ctx.beginPath();
-      this.ctx.lineWidth = this.reducedMotion ? 2 : 3;
-      this.ctx.lineCap = "round";
-      this.ctx.lineJoin = "round";
-
-      this.trail.forEach((point, index) => {
-        if (index === 0) {
-          this.ctx.moveTo(point.x, point.y);
-        } else {
-          this.ctx.lineTo(point.x, point.y);
-        }
-      });
-
-      const gradient = this.ctx.createLinearGradient(0, 0, this.width, this.height);
-      gradient.addColorStop(0, this.colorWithAlpha(this.palette.accentSoft, 0.18));
-      gradient.addColorStop(1, this.colorWithAlpha(this.palette.accent, 0.55));
-      this.ctx.strokeStyle = gradient;
-      this.ctx.stroke();
-
-      this.trail = this.trail
-        .map((point) => ({
-          ...point,
-          life: point.life - (this.reducedMotion ? 0.08 : 0.06)
-        }))
-        .filter((point) => point.life > 0);
-    }
-
-    drawConnections() {
-      for (let index = 0; index < this.orbs.length; index += 1) {
-        const first = this.orbs[index];
-
-        for (let next = index + 1; next < this.orbs.length; next += 1) {
-          const second = this.orbs[next];
-          const distance = Math.hypot(first.x - second.x, first.y - second.y);
-          const maxDistance = Math.min(this.width, this.height) * 0.42;
-
-          if (distance > maxDistance) {
-            continue;
-          }
-
-          const alpha = (1 - distance / maxDistance) * 0.12 + (first.energy + second.energy) * 0.08;
+      if (this.active && !this.gameOver && this.coreLives > 0) {
+        const seg = (2 * Math.PI) / 3;
+        for (let i = 0; i < 3; i++) {
+          const start = i * seg - Math.PI / 2;
+          const end = start + seg * (i < this.coreLives ? 1 : 0.3);
           this.ctx.beginPath();
-          this.ctx.strokeStyle = this.colorWithAlpha(this.palette.accent, Math.min(alpha, 0.36));
-          this.ctx.lineWidth = 1.2;
-          this.ctx.moveTo(first.x, first.y);
-          this.ctx.lineTo(second.x, second.y);
+          this.ctx.strokeStyle = this.colorWithAlpha(this.palette.text, i < this.coreLives ? 0.25 : 0.08);
+          this.ctx.lineWidth = 3;
+          this.ctx.arc(cx, cy, r * 1.15, start, end);
           this.ctx.stroke();
         }
       }
     }
 
-    drawRipples() {
-      this.ripples = this.ripples
-        .map((ripple) => ({
-          ...ripple,
-          radius: ripple.radius + ripple.speed,
-          alpha: ripple.alpha - 0.018
-        }))
-        .filter((ripple) => ripple.alpha > 0);
+    drawTrail() {
+      if (this.trail.length < 2) return;
+      this.ctx.beginPath();
+      this.ctx.lineWidth = 2 + Math.min(this.combo, 4) * 0.3;
+      this.ctx.lineCap = "round";
+      this.ctx.lineJoin = "round";
+      this.trail.forEach((p, i) => { i ? this.ctx.lineTo(p.x, p.y) : this.ctx.moveTo(p.x, p.y); });
+      const g = this.ctx.createLinearGradient(0, 0, this.width, this.height);
+      g.addColorStop(0, this.colorWithAlpha(this.palette.accentSoft, 0.2));
+      g.addColorStop(1, this.colorWithAlpha(this.palette.accent, 0.5));
+      this.ctx.strokeStyle = g;
+      this.ctx.stroke();
+      this.trail = this.trail.map((p) => ({ ...p, life: p.life - 0.07 })).filter((p) => p.life > 0);
+    }
 
-      this.ripples.forEach((ripple) => {
+    drawRipples() {
+      this.ripples = this.ripples.map((r) => ({ ...r, radius: r.radius + r.speed, alpha: r.alpha - 0.02 })).filter((r) => r.alpha > 0);
+      this.ripples.forEach((r) => {
         this.ctx.beginPath();
-        this.ctx.strokeStyle = this.colorWithAlpha(this.palette.accentSoft, ripple.alpha);
+        this.ctx.strokeStyle = this.colorWithAlpha(this.palette.accentSoft, r.alpha);
         this.ctx.lineWidth = 1.5;
-        this.ctx.arc(ripple.x, ripple.y, ripple.radius, 0, Math.PI * 2);
+        this.ctx.arc(r.x, r.y, r.radius, 0, Math.PI * 2);
         this.ctx.stroke();
       });
     }
 
-    drawOrb(orb) {
-      const glowRadius = orb.radius * (2.2 + orb.energy * 0.75);
-      const gradient = this.ctx.createRadialGradient(
-        orb.x,
-        orb.y,
-        0,
-        orb.x,
-        orb.y,
-        glowRadius
-      );
+    drawBurstParticles() {
+      this.burstParticles = this.burstParticles.map((p) => ({
+        ...p, x: p.x + p.vx, y: p.y + p.vy, vx: p.vx * 0.94, vy: p.vy * 0.94 + 0.03, life: p.life - 0.03
+      })).filter((p) => p.life > 0);
+      this.burstParticles.forEach((p) => {
+        this.ctx.beginPath();
+        this.ctx.fillStyle = this.colorWithAlpha(p.isBonus ? this.palette.text : this.palette.accentSoft, p.life * 0.9);
+        this.ctx.arc(p.x, p.y, p.radius * p.life, 0, Math.PI * 2);
+        this.ctx.fill();
+      });
+    }
 
-      gradient.addColorStop(0, this.colorWithAlpha(this.palette.accentSoft, 0.34 + orb.energy * 0.2));
-      gradient.addColorStop(1, this.colorWithAlpha(this.palette.accent, 0));
-
+    drawOrb(orb, timestamp) {
+      const pulse = orb.idle ? 0.6 + 0.4 * Math.sin(timestamp * 0.001 + orb.offset) : 1;
+      const r = orb.radius * pulse;
+      const glowR = r * 2.2;
+      const grad = this.ctx.createRadialGradient(orb.x, orb.y, 0, orb.x, orb.y, glowR);
+      grad.addColorStop(0, this.colorWithAlpha(this.palette.accentSoft, orb.idle ? 0.2 : 0.35));
+      grad.addColorStop(1, this.colorWithAlpha(this.palette.accent, 0));
       this.ctx.beginPath();
-      this.ctx.fillStyle = gradient;
-      this.ctx.arc(orb.x, orb.y, glowRadius, 0, Math.PI * 2);
+      this.ctx.fillStyle = grad;
+      this.ctx.arc(orb.x, orb.y, glowR, 0, Math.PI * 2);
       this.ctx.fill();
-
       this.ctx.beginPath();
-      this.ctx.fillStyle = this.colorWithAlpha(this.palette.accentSoft, 0.84);
-      this.ctx.arc(orb.x, orb.y, orb.radius * (0.72 + orb.energy * 0.06), 0, Math.PI * 2);
-      this.ctx.fill();
-
-      this.ctx.beginPath();
-      this.ctx.fillStyle = this.colorWithAlpha(this.palette.text, 0.18);
-      this.ctx.arc(orb.x - orb.radius * 0.2, orb.y - orb.radius * 0.2, orb.radius * 0.18, 0, Math.PI * 2);
+      this.ctx.fillStyle = this.colorWithAlpha(this.palette.accentSoft, orb.idle ? 0.4 : 0.7);
+      this.ctx.arc(orb.x, orb.y, r * 0.8, 0, Math.PI * 2);
       this.ctx.fill();
     }
 
     updateOrbs(timestamp) {
-      this.orbs.forEach((orb) => {
-        const driftMultiplier = this.reducedMotion ? 0.45 : 1;
-        orb.x = orb.baseX + Math.cos(timestamp * 0.0006 * orb.speed + orb.offset) * orb.driftX * driftMultiplier;
-        orb.y = orb.baseY + Math.sin(timestamp * 0.0008 * orb.speed + orb.offset) * orb.driftY * driftMultiplier;
-        orb.energy = Math.max(0, orb.energy - (this.reducedMotion ? 0.03 : 0.02));
-      });
-    }
+      const cx = this.width / 2;
+      const cy = this.height / 2;
+      const coreR = this.getCoreRadius();
+      const now = performance.now();
 
-    render(timestamp = 0) {
-      window.requestAnimationFrame((time) => this.render(time));
-
-      const frameInterval = this.reducedMotion ? 1000 / 22 : 1000 / 42;
-      if (timestamp - this.lastFrameTime < frameInterval) {
+      if (this.completed && this.celebrationPhase > 0 && this.celebrationPhase < 1.5) {
+        this.celebrationPhase += 0.01;
         return;
       }
 
-      this.lastFrameTime = timestamp;
-      this.ctx.clearRect(0, 0, this.width, this.height);
+      if (!this.active) {
+        this.orbs.forEach((orb, i) => {
+          const r = Math.min(this.width, this.height) * 0.3;
+          const a = (Math.PI * 2 * i) / this.orbs.length + timestamp * 0.00025;
+          orb.x = cx + Math.cos(a) * r;
+          orb.y = cy + Math.sin(a) * r;
+        });
+        return;
+      }
 
-      this.drawBackdrop();
+      if (this.gameOver) return;
+
+      if (now >= this.spawnNext) {
+        this.spawnOrb();
+        const minInterval = this.isMobile ? 320 : 380;
+        const baseInterval = this.isMobile ? 750 : 1050;
+        const decay = this.isMobile ? 20 : 16;
+        this.spawnNext = now + Math.max(minInterval, baseInterval - this.score * decay);
+      }
+
+      this.orbs = this.orbs.filter((orb) => {
+        if (orb.idle) return true;
+        orb.x += orb.vx;
+        orb.y += orb.vy;
+        const dist = Math.hypot(orb.x - cx, orb.y - cy);
+        if (dist < coreR + orb.radius) {
+          this.coreLives--;
+          this.coreDamageTime = now;
+          this.triggerShake(5);
+          this.triggerFlash(0.2);
+          this.combo = 0;
+          this.spawnBurst(cx, cy, 16, false);
+          if (this.coreLives <= 0) {
+            this.gameOver = true;
+            this.active = false;
+            this.root.classList.remove("is-active");
+            this.root.classList.add("is-gameover");
+          }
+          return false;
+        }
+        return dist < Math.max(this.width, this.height) * 0.8;
+      });
+    }
+
+    updateShake() {
+      if (this.shakeDecay > 0.1) {
+        this.shakeOffset.x = (Math.random() - 0.5) * this.shakeDecay;
+        this.shakeOffset.y = (Math.random() - 0.5) * this.shakeDecay;
+        this.shakeDecay *= 0.88;
+      } else {
+        this.shakeOffset.x = 0;
+        this.shakeOffset.y = 0;
+      }
+    }
+
+    updateFlash() {
+      if (this.flashAlpha > 0.002) this.flashAlpha *= 0.9;
+      else this.flashAlpha = 0;
+    }
+
+    render(timestamp = 0) {
+      window.requestAnimationFrame((t) => this.render(t));
+      if (!this.isVisible || document.hidden) return;
+
+      const fps = this.reducedMotion ? 22 : (this.isMobile ? 28 : 42);
+      if (timestamp - this.lastFrameTime < 1000 / fps) return;
+      this.lastFrameTime = timestamp;
+
+      this.updateShake();
+      this.updateFlash();
       this.updateOrbs(timestamp);
-      this.drawConnections();
+
+      this.ctx.save();
+      this.ctx.translate(this.shakeOffset.x, this.shakeOffset.y);
+      this.ctx.clearRect(-5, -5, this.width + 10, this.height + 10);
+
+      this.drawCore(timestamp);
       this.drawTrail();
       this.drawRipples();
-      this.orbs.forEach((orb) => this.drawOrb(orb));
+      this.drawBurstParticles();
+      this.orbs.forEach((o) => this.drawOrb(o, timestamp));
+
+      if (this.flashAlpha > 0.005) {
+        this.ctx.fillStyle = this.colorWithAlpha(this.palette.text, this.flashAlpha);
+        this.ctx.fillRect(0, 0, this.width, this.height);
+      }
+      this.ctx.restore();
+
+      if (this.active && !this.gameOver && !this.completed) {
+        const n = performance.now();
+        if (n - this.lastHitTime > this.comboDecay && this.combo > 0) {
+          this.combo = 0;
+        }
+      }
     }
   }
 
@@ -489,8 +535,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  function applyTheme(themeName) {
-    const nextTheme = themes[themeName] ? themeName : "violet";
+  function commitTheme(nextTheme) {
     body.dataset.theme = nextTheme;
     localStorage.setItem("cla1ve-theme", nextTheme);
 
@@ -511,6 +556,11 @@ document.addEventListener("DOMContentLoaded", () => {
         detail: { theme: nextTheme }
       })
     );
+  }
+
+  function applyTheme(themeName) {
+    const nextTheme = themes[themeName] ? themeName : "violet";
+    commitTheme(nextTheme);
   }
 
   function updateTopButton() {
@@ -685,6 +735,24 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (orbSyncRoot) {
     window.orbSync = new OrbSync(orbSyncRoot, reduceMotion);
+    const startBtn = orbSyncRoot.querySelector(".sync-start");
+    const retryBtn = orbSyncRoot.querySelector(".sync-retry");
+    if (startBtn) {
+      startBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (window.orbSync && typeof window.orbSync.begin === "function") {
+          window.orbSync.begin();
+        }
+      });
+    }
+    if (retryBtn) {
+      retryBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (window.orbSync && typeof window.orbSync.begin === "function") {
+          window.orbSync.begin();
+        }
+      });
+    }
   }
 
   updateTopButton();

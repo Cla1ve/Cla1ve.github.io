@@ -12,6 +12,8 @@ class AmbientParticleSystem {
     this.dpr = 1;
     this.width = 0;
     this.height = 0;
+    this.isVisible = true;
+    this.isMobile = window.innerWidth < 768;
     this.reduceMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
     this.reducedMotion = this.reduceMotionQuery.matches;
     this.palette = this.readPalette();
@@ -22,6 +24,7 @@ class AmbientParticleSystem {
     this.resize();
     this.createParticles();
     this.bindEvents();
+    this.setupVisibilityObserver();
     this.animate();
   }
 
@@ -34,17 +37,32 @@ class AmbientParticleSystem {
 
   getParticleCount() {
     if (this.reducedMotion) {
-      return window.innerWidth < 768 ? 8 : 12;
+      return this.isMobile ? 6 : 12;
     }
-    return window.innerWidth < 768 ? 16 : 30;
+    return this.isMobile ? 10 : 28;
   }
 
   getConnectionDistance() {
-    return window.innerWidth < 768 ? 96 : 138;
+    return this.isMobile ? 80 : 138;
+  }
+
+  setupVisibilityObserver() {
+    const sentinel = document.createElement("div");
+    sentinel.style.cssText = "position:absolute;top:0;left:0;width:1px;height:100vh;pointer-events:none;";
+    document.body.appendChild(sentinel);
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        this.isVisible = entries[0].isIntersecting;
+      },
+      { threshold: 0 }
+    );
+    observer.observe(sentinel);
   }
 
   resize() {
-    this.dpr = Math.min(window.devicePixelRatio || 1, 2);
+    this.isMobile = window.innerWidth < 768;
+    this.dpr = Math.min(window.devicePixelRatio || 1, this.isMobile ? 1.5 : 2);
     this.width = window.innerWidth;
     this.height = window.innerHeight;
     this.canvas.width = this.width * this.dpr;
@@ -56,11 +74,12 @@ class AmbientParticleSystem {
 
   createParticle() {
     const paletteColor = this.palette[Math.floor(Math.random() * this.palette.length)];
+    const speed = this.reducedMotion ? 0.08 : 0.18;
     return {
       x: Math.random() * this.width,
       y: Math.random() * this.height,
-      vx: (Math.random() - 0.5) * (this.reducedMotion ? 0.08 : 0.18),
-      vy: (Math.random() - 0.5) * (this.reducedMotion ? 0.08 : 0.18),
+      vx: (Math.random() - 0.5) * speed,
+      vy: (Math.random() - 0.5) * speed,
       radius: Math.random() * 1.8 + 0.8,
       glow: Math.random() * 10 + 10,
       opacity: Math.random() * 0.45 + 0.22,
@@ -88,14 +107,14 @@ class AmbientParticleSystem {
       resizeTimeout = window.setTimeout(() => {
         this.resize();
         this.createParticles();
-      }, 120);
+      }, 150);
     });
 
     window.addEventListener("pointermove", (event) => {
       this.pointer.x = event.clientX;
       this.pointer.y = event.clientY;
       this.pointer.active = true;
-    });
+    }, { passive: true });
 
     window.addEventListener("pointerleave", () => {
       this.pointer.active = false;
@@ -174,14 +193,21 @@ class AmbientParticleSystem {
 
   drawConnections() {
     const maxDistance = this.getConnectionDistance();
+    const len = this.particles.length;
 
-    for (let index = 0; index < this.particles.length; index += 1) {
+    this.ctx.lineWidth = 1;
+    for (let index = 0; index < len; index += 1) {
       const first = this.particles[index];
 
-      for (let next = index + 1; next < this.particles.length; next += 1) {
+      for (let next = index + 1; next < len; next += 1) {
         const second = this.particles[next];
         const dx = first.x - second.x;
         const dy = first.y - second.y;
+
+        if (Math.abs(dx) > maxDistance || Math.abs(dy) > maxDistance) {
+          continue;
+        }
+
         const distance = Math.hypot(dx, dy);
 
         if (distance > maxDistance) {
@@ -191,7 +217,6 @@ class AmbientParticleSystem {
         const alpha = (1 - distance / maxDistance) * 0.18;
         this.ctx.beginPath();
         this.ctx.strokeStyle = this.colorWithAlpha(first.color, alpha);
-        this.ctx.lineWidth = 1;
         this.ctx.moveTo(first.x, first.y);
         this.ctx.lineTo(second.x, second.y);
         this.ctx.stroke();
@@ -222,7 +247,12 @@ class AmbientParticleSystem {
   animate(timestamp = 0) {
     requestAnimationFrame((time) => this.animate(time));
 
-    const frameInterval = this.reducedMotion ? 1000 / 18 : 1000 / 40;
+    if (!this.isVisible || document.hidden) {
+      return;
+    }
+
+    const targetFps = this.reducedMotion ? 18 : (this.isMobile ? 30 : 40);
+    const frameInterval = 1000 / targetFps;
     if (timestamp - this.lastFrameTime < frameInterval) {
       return;
     }
