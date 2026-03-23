@@ -3,5 +3,5 @@
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY
   X-XSS-Protection: 1; mode=block
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' *.googleapis.com *.gstatic.com; style-src 'self' 'unsafe-inline' *.googleapis.com; img-src 'self' data: *.githubusercontent.com; font-src 'self' *.gstatic.com *.googleapis.com; connect-src 'self';
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' *.googleapis.com *.gstatic.com cdnjs.cloudflare.com unpkg.com; style-src 'self' 'unsafe-inline' *.googleapis.com; img-src 'self' data: *.githubusercontent.com; font-src 'self' *.gstatic.com *.googleapis.com; connect-src 'self'; media-src 'self';
 */ 
